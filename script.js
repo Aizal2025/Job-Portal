@@ -1,4 +1,4 @@
- // apna emailjs public key yahan daal diya hai, isse real email jayega admin ko
+// apna emailjs public key yahan daal diya hai, isse real email jayega admin ko
 emailjs.init("VTDZyj_VJqH2rtJJh");
 
 // ----------- Firebase setup (LocalStorage ki jagah ab yahi database ka kaam karega) -----------
@@ -471,7 +471,10 @@ async function applyToJob(jobId) {
         applicant_name: user.name,
         applicant_email: user.email,
         job_title: job.title
+      }).then(function () {
+        alert("Email sent to admin: " + admin.email);
       }).catch(function (err) {
+        alert("Email FAILED to send. Error: " + JSON.stringify(err));
         console.log("Email nahi ja paya:", err);
       });
     }

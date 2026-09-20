@@ -1,9 +1,13 @@
-  /* mene basic reset laga diya taki sab jagah same dikhe */
+ /* mene basic reset laga diya taki sab jagah same dikhe */
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
   body {
     min-height:100vh;
-    background: linear-gradient(135deg, #1f4037 0%, #2575fc 100%);
+    background: linear-gradient(rgba(31,64,55,0.75), rgba(37,117,252,0.75)), url('background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color:#333;
   }
 
@@ -182,4 +186,16 @@
     .header-right { gap:6px; }
     #userBadge { font-size:11px; padding:5px 8px; }
     #logoutBtn { padding:6px 10px; font-size:12px; }
+  }
+  /* neeche wala footer */
+  #siteFooter {
+    text-align:center;
+    padding:16px 10px;
+    color:rgba(255,255,255,0.85);
+    font-size:12.5px;
+  }
+  #siteFooter .footer-sub {
+    font-size:11px;
+    color:rgba(255,255,255,0.55);
+    margin-top:3px;
   }

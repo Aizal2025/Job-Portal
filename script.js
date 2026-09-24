@@ -26,7 +26,7 @@ try {
 
 function checkFirebaseReady() {
   if (typeof firebase === 'undefined' || db === null) {
-    alert("Internet weak lag raha hai, page thik se load nahi hua. Refresh kro aur dobara try kro.");
+    alert("Network isshue Refresh it.");
     return false;
   }
   return true;
@@ -34,7 +34,7 @@ function checkFirebaseReady() {
 
 // ---- ye sara data ka kaam firestore se ho raha hai, yehi hamara database hai ----
 
-async function getUsers() {
+  async function getUsers() {
   let snapshot = await db.collection('users').get();
   let users = [];
   let docs = snapshot.docs;

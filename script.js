@@ -1,4 +1,4 @@
-// ----------- Firebase setup  -----------
+// yaha se firebase connect hota hai, isi se data save/load hoga sabke device pe
 let firebaseConfig = {
   apiKey: "AIzaSyB2nz7WIbS45cTuOwPfqB0Dr_3JIVcoIl8",
   authDomain: "job-portal-9b62e.firebaseapp.com",
@@ -8,19 +8,41 @@ let firebaseConfig = {
   appId: "1:898786258402:web:d49a4d86fdcd226e19ddbb"
 };
 
-firebase.initializeApp(firebaseConfig);
-let db = firebase.firestore();
+// agar net slow hua aur firebase load hi na hua, poora page crash na ho jaye isliye try catch
+let db = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch (err) {
+  console.log("firebase load nahi hua bhai:", err);
+}
 
-// ----------- Data help-----------
+//emaijjs
+try {
+  emailjs.init("VTDZyj_VJqH2rtJJh");
+} catch (err) {
+  console.log("emailjs load nahi hua:", err);
+}
+
+function checkFirebaseReady() {
+  if (typeof firebase === 'undefined' || db === null) {
+    alert("Internet weak lag raha hai, page thik se load nahi hua. Refresh kro aur dobara try kro.");
+    return false;
+  }
+  return true;
+}
+
+// ---- ye sara data ka kaam firestore se ho raha hai, yehi hamara database hai ----
 
 async function getUsers() {
   let snapshot = await db.collection('users').get();
   let users = [];
-  snapshot.forEach(function (doc) {
-    let data = doc.data();
-    data.id = doc.id;
+  let docs = snapshot.docs;
+  for (let i = 0; i < docs.length; i++) {
+    let data = docs[i].data();
+    data.id = docs[i].id;
     users.push(data);
-  });
+  }
   return users;
 }
 
@@ -33,11 +55,12 @@ async function addUserToDb(userObj) {
 async function getJobs() {
   let snapshot = await db.collection('jobs').get();
   let jobs = [];
-  snapshot.forEach(function (doc) {
-    let data = doc.data();
-    data.id = doc.id;
+  let docs = snapshot.docs;
+  for (let i = 0; i < docs.length; i++) {
+    let data = docs[i].data();
+    data.id = docs[i].id;
     jobs.push(data);
-  });
+  }
   return jobs;
 }
 
@@ -58,11 +81,12 @@ async function deleteJobFromDb(jobId) {
 async function getApplications() {
   let snapshot = await db.collection('applications').get();
   let applications = [];
-  snapshot.forEach(function (doc) {
-    let data = doc.data();
-    data.id = doc.id;
+  let docs = snapshot.docs;
+  for (let i = 0; i < docs.length; i++) {
+    let data = docs[i].data();
+    data.id = docs[i].id;
     applications.push(data);
-  });
+  }
   return applications;
 }
 
@@ -72,21 +96,23 @@ async function addApplicationToDb(appObj) {
 
 async function deleteApplicationsForJob(jobId) {
   let snapshot = await db.collection('applications').where('jobId', '==', jobId).get();
-  let jobsToDelete = [];
-  snapshot.forEach(function (doc) {
-    jobsToDelete.push(doc.ref.delete());
-  });
-  await Promise.all(jobsToDelete);
+  let docs = snapshot.docs;
+  let deletePromises = [];
+  for (let i = 0; i < docs.length; i++) {
+    deletePromises.push(docs[i].ref.delete());
+  }
+  await Promise.all(deletePromises);
 }
 
 async function getNotifications() {
   let snapshot = await db.collection('notifications').get();
   let notifications = [];
-  snapshot.forEach(function (doc) {
-    let data = doc.data();
-    data.id = doc.id;
+  let docs = snapshot.docs;
+  for (let i = 0; i < docs.length; i++) {
+    let data = docs[i].data();
+    data.id = docs[i].id;
     notifications.push(data);
-  });
+  }
   return notifications;
 }
 
@@ -96,15 +122,15 @@ async function addNotificationToDb(notifObj) {
 
 async function markMyNotificationsRead(userId) {
   let snapshot = await db.collection('notifications').where('forUserId', '==', userId).get();
-  let updates = [];
-  snapshot.forEach(function (doc) {
-    updates.push(doc.ref.update({ read: true }));
-  });
-  await Promise.all(updates);
+  let docs = snapshot.docs;
+  let updatePromises = [];
+  for (let i = 0; i < docs.length; i++) {
+    updatePromises.push(docs[i].ref.update({ read: true }));
+  }
+  await Promise.all(updatePromises);
 }
 
-// login session 
-// device pe abhi kaun login hai" batata hai
+// login session ke liye sessionStorage use kr rhe, ye sirf batata hai abhi is tab me kaun login hai
 function getCurrentUser() {
   let data = sessionStorage.getItem('jp_current_user');
   if (data == null) { return null; }
@@ -117,7 +143,7 @@ function clearCurrentUser() {
   sessionStorage.removeItem('jp_current_user');
 }
 
-// ----------- (login/signup) -----------
+// ---- login / signup tab  part ----
 let loginTabBtn = document.getElementById('loginTabBtn');
 let signupTabBtn = document.getElementById('signupTabBtn');
 let loginForm = document.getElementById('loginForm');
@@ -137,7 +163,7 @@ signupTabBtn.addEventListener('click', function () {
   loginForm.classList.add('hidden');
 });
 
-//  (job seeker ya admin)
+// role choose krna hai, admin ya normal user
 let selectedRole = 'user';
 let roleOptions = document.querySelectorAll('.role-option');
 for (let r = 0; r < roleOptions.length; r++) {
@@ -150,32 +176,46 @@ for (let r = 0; r < roleOptions.length; r++) {
   });
 }
 
-// ----------- signup work -----------
+// ---- signup ka logic ----
 document.getElementById('signupBtn').addEventListener('click', async function () {
+  if (!checkFirebaseReady()) { return; }
+
   let name = document.getElementById('signupName').value.trim();
   let email = document.getElementById('signupEmail').value.trim().toLowerCase();
   let password = document.getElementById('signupPassword').value;
   let errorEl = document.getElementById('signupError');
 
-  // re-check
+  // form error
   if (!name || !email || !password) {
     errorEl.textContent = "Please fill all fields.";
     errorEl.style.display = 'block';
     return;
   }
-
   errorEl.style.display = 'none';
 
-  // email se multiple baar signup allow  hai
+  // same email use multi times, 
   let newUser = { name: name, email: email, password: password, role: selectedRole };
   newUser = await addUserToDb(newUser);
 
   setCurrentUser(newUser);
+
+  // form ko reset kr diya taki agla banda fresh se signup kre, warna admin hi selected reh jata
+  selectedRole = 'user';
+  for (let k = 0; k < roleOptions.length; k++) {
+    roleOptions[k].classList.remove('selected');
+  }
+  roleOptions[0].classList.add('selected');
+  document.getElementById('signupName').value = '';
+  document.getElementById('signupEmail').value = '';
+  document.getElementById('signupPassword').value = '';
+
   enterApp();
 });
 
-// ----------- login ka kaam -----------
+// ---- login logic ----
 document.getElementById('loginBtn').addEventListener('click', async function () {
+  if (!checkFirebaseReady()) { return; }
+
   let email = document.getElementById('loginEmail').value.trim().toLowerCase();
   let password = document.getElementById('loginPassword').value;
   let errorEl = document.getElementById('loginError');
@@ -198,14 +238,20 @@ document.getElementById('loginBtn').addEventListener('click', async function () 
   enterApp();
 });
 
-// ----------- logout -----------
+// ---- logout ----
 document.getElementById('logoutBtn').addEventListener('click', function () {
   clearCurrentUser();
   document.getElementById('appScreen').classList.add('hidden');
   document.getElementById('authScreen').classList.remove('hidden');
+
+  // logout krte hi login tab pe wapas bhej d
+  loginTabBtn.classList.add('active');
+  signupTabBtn.classList.remove('active');
+  loginForm.classList.remove('hidden');
+  signupForm.classList.add('hidden');
 });
 
-// ----------- login/signup ke baad sahi wala screen dikhan -----------
+// ---- login/signup  ----
 async function enterApp() {
   let user = getCurrentUser();
   document.getElementById('authScreen').classList.add('hidden');
@@ -227,7 +273,7 @@ async function enterApp() {
   await renderNotifications();
 }
 
-// -----------  post job aur manage job -----------
+// admin have 2 tabs hain - post job / manage job
 let postTabBtn = document.getElementById('postTabBtn');
 let manageTabBtn = document.getElementById('manageTabBtn');
 
@@ -246,8 +292,10 @@ manageTabBtn.addEventListener('click', async function () {
   await renderAdminJobs();
 });
 
-// ----------- naya job post -----------
+// ---- new job----
 document.getElementById('postJobBtn').addEventListener('click', async function () {
+  if (!checkFirebaseReady()) { return; }
+
   let title = document.getElementById('jobTitle').value.trim();
   let company = document.getElementById('jobCompany').value.trim();
   let location = document.getElementById('jobLocation').value.trim();
@@ -272,7 +320,7 @@ document.getElementById('postJobBtn').addEventListener('click', async function (
   };
   await addJobToDb(newJob);
 
-  // clear form
+  // refresh form
   document.getElementById('jobTitle').value = '';
   document.getElementById('jobCompany').value = '';
   document.getElementById('jobLocation').value = '';
@@ -282,14 +330,23 @@ document.getElementById('postJobBtn').addEventListener('click', async function (
   await renderAdminJobs();
 });
 
-// ----------- show admin  list  applicants ke sath -----------
+// ---- admin ki list dikhana, applicants ke naam ke sath ----
 async function renderAdminJobs() {
   let list = document.getElementById('adminJobList');
   list.innerHTML = '<p class="empty-note">Loading jobs...</p>';
 
-  let jobs = await getJobs();
+  let allJobs = await getJobs();
   let applications = await getApplications();
   let users = await getUsers();
+  let currentUser = getCurrentUser();
+
+  // sirf isi admin ki daali hui jobs dikhani hain, dusre admin ki nahi
+  let jobs = [];
+  for (let i = 0; i < allJobs.length; i++) {
+    if (allJobs[i].postedBy === currentUser.id) {
+      jobs.push(allJobs[i]);
+    }
+  }
 
   if (jobs.length === 0) {
     list.innerHTML = '<p class="empty-note">No jobs posted yet. Use the "Post a Job" tab to add one.</p>';
@@ -301,7 +358,7 @@ async function renderAdminJobs() {
   for (let i = 0; i < jobs.length; i++) {
     let job = jobs[i];
 
-    // is job pe kisne kisne apply kiya, wo dhoondh rahe hain
+    // is job pe kis kis ne apply kiya wo dhoondhte hain
     let applicants = [];
     for (let j = 0; j < applications.length; j++) {
       if (applications[j].jobId === job.id) {
@@ -339,7 +396,7 @@ async function renderAdminJobs() {
   }
 }
 
-// ----------- job edit -----------
+// ---- job edit function ----
 async function editJob(jobId) {
   let jobs = await getJobs();
   let job = null;
@@ -370,14 +427,14 @@ async function editJob(jobId) {
   await renderAdminJobs();
 }
 
-// ----------- job delete-----------
+// ---- job delete function----
 async function deleteJob(jobId) {
   await deleteJobFromDb(jobId);
   await deleteApplicationsForJob(jobId);
   await renderAdminJobs();
 }
 
-// ----------- user ko available jobs dikhana -----------
+// ---- user ko jobs dikhana ----
 async function renderUserJobs() {
   let list = document.getElementById('jobListingsForUser');
   list.innerHTML = '<div class="card"><p class="empty-note">Loading jobs...</p></div>';
@@ -396,7 +453,7 @@ async function renderUserJobs() {
   for (let i = 0; i < jobs.length; i++) {
     let job = jobs[i];
 
-    // check kar rahe hain ki is job pe pehle se apply kiya hai ya nahi
+//aready applie or not
     let alreadyApplied = false;
     for (let j = 0; j < applications.length; j++) {
       if (applications[j].jobId === job.id && applications[j].userId === user.id) {
@@ -427,7 +484,7 @@ async function renderUserJobs() {
   }
 }
 
-// ----------- job pe apply  -----------
+// ---- job ----
 async function applyToJob(jobId) {
   let user = getCurrentUser();
   let jobs = await getJobs();
@@ -444,9 +501,9 @@ async function applyToJob(jobId) {
   });
 
   if (job != null) {
-    // job post karne wale admin ke liye notification bana rahe hain
+    // admin notification 
     await addNotificationToDb({
-      forUserId: job.postedBy
+      forUserId: job.postedBy,
       jobId: job.id,
       jobTitle: job.title,
       applicantName: user.name,
@@ -454,12 +511,30 @@ async function applyToJob(jobId) {
       time: new Date().toLocaleString(),
       read: false
     });
+
+    // admin ka email nikal ke usko asli mail bhi bhej dete hain
+    let allUsers = await getUsers();
+    let admin = null;
+    for (let k = 0; k < allUsers.length; k++) {
+      if (allUsers[k].id === job.postedBy) { admin = allUsers[k]; break; }
+    }
+
+    if (admin != null && typeof emailjs !== 'undefined') {
+      emailjs.send("service_nyzb2qd", "template_jt2jxaf", {
+        to_email: admin.email,
+        applicant_name: user.name,
+        applicant_email: user.email,
+        job_title: job.title
+      }).catch(function (err) {
+        console.log("mail nahi gaya bhai:", err);
+      });
+    }
   }
 
   await renderUserJobs();
 }
 
-// ----------- notification bell  -----------
+// ---- notification bell  part ----
 async function renderNotifications() {
   let user = getCurrentUser();
   if (user == null || user.role !== 'admin') {
@@ -473,7 +548,7 @@ async function renderNotifications() {
   for (let i = 0; i < allNotifs.length; i++) {
     if (allNotifs[i].forUserId === user.id) { myNotifs.push(allNotifs[i]); }
   }
-  myNotifs.reverse(); // latest sabse upar dikhe isliye
+  myNotifs.reverse(); // latest work
 
   let unreadCount = 0;
   for (let j = 0; j < myNotifs.length; j++) {
@@ -506,17 +581,17 @@ async function renderNotifications() {
   list.innerHTML = listHtml;
 }
 
-// bell pe click karne se panel khulta/band hota hai
+// bell icon list
 document.getElementById('notifBell').addEventListener('click', async function () {
   document.getElementById('notifPanel').classList.toggle('open');
 
-  // panel khulte hi sab notification "read" mark kar diye
+  // khulte hi sara kuch read mark kr do
   let user = getCurrentUser();
   await markMyNotificationsRead(user.id);
   setTimeout(renderNotifications, 300);
 });
 
-// panel ke bahar click karo to wo band ho jaye
+// close panal
 document.addEventListener('click', function (e) {
   let wrap = document.getElementById('notifWrap');
   if (wrap && !wrap.contains(e.target)) {
@@ -524,14 +599,14 @@ document.addEventListener('click', function (e) {
   }
 });
 
-// security ke liye, user ka text safe kar dete hain HTML me daalne se pehle
+// User data sequrity
 function escapeHtml(text) {
   let div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-// agar pehle se login session hai to seedha app khol do
+// direct open app
 window.addEventListener('load', function () {
   let user = getCurrentUser();
   if (user) { enterApp(); }

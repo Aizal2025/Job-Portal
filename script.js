@@ -27,7 +27,7 @@ try {
 // buttons dabane se pehle check kr lete hain firebase ready hai ya nahi
 function checkFirebaseReady() {
   if (typeof firebase === 'undefined' || db === null) {
-    alert("Internet weak lag raha hai, page thik se load nahi hua. Refresh kro aur dobara try kro.");
+    alert("Network isshu try again.");
     return false;
   }
   return true;
